@@ -3,6 +3,6 @@ targets:
   - esp32s3
 dependencies:
   idf: ">=4.4.1"
-  leeebo/cherryusb_esp32:
+  udoudou/esp_cherryusb:
     version: "0.0.*"
-    override_path: "../../../../../cherryusb_esp32"
+    override_path: "../../../.."

@@ -1,27 +1,22 @@
 name: Push component to https://components.espressif.com
 on:
   push:
-    branches:
-      - master
+    tags:
+      - v*
 
 jobs:
   upload_components:
+    if: github.repository == 'udoudou/esp_cherryusb'
     runs-on: ubuntu-latest
     steps:
-      - name: Check the repository name
-        run: |
-          if [[ ${{ github.repository }} != "leeebo/cherryusb_esp32" ]]; then
-            echo "This action is only for leeebo/cherryusb_esp32 repository"
-          fi
       - uses: actions/checkout@v2
-        if: github.repository == 'leeebo/cherryusb_esp32'
         with:
           submodules: "recursive"
 
       - name: Upload component to the component registry
-        if: github.repository == 'leeebo/cherryusb_esp32'
         uses: espressif/upload-components-ci-action@v1
         with:
-          name: "cherryusb_esp32"
-          namespace: "leeebo"
+          name: "esp_cherryusb"
+          version: ${{ github.ref_name }}
+          namespace: "udoudou"
           api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}
