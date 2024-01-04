@@ -219,12 +219,11 @@ menu "ESP CherryUSB"
         config USBHOST_MAX_INTERFACES
             int "Maximum number of interfaces"
             depends on CHERRYUSBH_ENABLED
-            default 6
-            range 6 6
+            default 8
         config USBHOST_MAX_INTF_ALTSETTINGS
             int "Maximum number of interface alternate settings"
             depends on CHERRYUSBH_ENABLED
-            default 1
+            default 8
         config USBHOST_MAX_ENDPOINTS
             int "Maximum number of endpoints"
             depends on CHERRYUSBH_ENABLED
@@ -249,10 +248,6 @@ menu "ESP CherryUSB"
             int "Maximum number of Video class devices"
             depends on CHERRYUSBH_ENABLED
             default 1
-        config USBHOST_MAX_RNDIS_CLASS
-            int "Maximum number of RNDIS class devices"
-            depends on CHERRYUSBH_ENABLED
-            default 1
         config USBHOST_DEV_NAMELEN
             int "Maximum length of device name"
             depends on CHERRYUSBH_ENABLED
@@ -260,7 +255,8 @@ menu "ESP CherryUSB"
         config USBHOST_PSC_PRIO
             int "Priority of the Host PSC task"
             depends on CHERRYUSBH_ENABLED
-            default 4
+            range 0 23
+            default 0
         config USBHOST_PSC_STACKSIZE
             int "Stack size of the Host PSC task"
             depends on CHERRYUSBH_ENABLED
@@ -269,6 +265,15 @@ menu "ESP CherryUSB"
             bool "Get string descriptor"
             depends on CHERRYUSBH_ENABLED
             default n
+        config USBHOST_MSOS_ENABLE
+            bool "todo"
+            depends on CHERRYUSBH_ENABLED
+            default n
+        config USBHOST_MSOS_VENDOR_CODE
+            hex "todo"
+            depends on USBHOST_MSOS_ENABLE
+            range 0x00 0xff
+            default 0x00
         config USBHOST_REQUEST_BUFFER_LEN
             int "Largest size (in bytes) of transfers from/to ep0"
             depends on CHERRYUSBH_ENABLED
@@ -277,6 +282,10 @@ menu "ESP CherryUSB"
             int "Timeout for control transfers (in ms)"
             depends on CHERRYUSBH_ENABLED
             default 500
+        config USBHOST_MSC_TIMEOUT
+            int "Timeout for MSC (in ms)"
+            depends on CHERRYUSBH_ENABLED
+            default 5000
     endmenu
 
 endmenu #ESP CherryUSB

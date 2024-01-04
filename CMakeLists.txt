@@ -1,4 +1,4 @@
-idf_component_get_property(cusb_path leeebo__cherryusb COMPONENT_DIR)
+set(cusb_path "CherryUSB")
 
 set(srcs "additions/esp_cherryusb.c")
 set(inc_dirs "additions" "${cusb_path}/common" "${cusb_path}/core")

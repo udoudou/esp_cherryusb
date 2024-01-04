@@ -25,9 +25,14 @@ static intr_handle_t s_interrupt_handle = NULL;
 
 static void usb_interrupt_cb(void *arg_pv)
 {
-    extern void OTG_FS_IRQHandler();
+    extern void USBD_IRQHandler();
 
-    OTG_FS_IRQHandler();
+    USBD_IRQHandler();
+}
+
+uint32_t usbd_get_dwc2_gccfg_conf(void)
+{
+    return 0;
 }
 
 void usb_dc_low_level_init(void)
