@@ -1,7 +1,4 @@
 version: "0.0.1"
-targets:
-  - esp32s2
-  - esp32s3
 description: CherryUSB Port and Examples for ESP SoC with USB-OTG (S2/S3/C5/P4)
 url: https://github.com/udoudou/esp_cherryusb
 repository: https://github.com/udoudou/esp_cherryusb.git

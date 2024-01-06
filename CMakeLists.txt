@@ -1,7 +1,11 @@
 set(cusb_path "CherryUSB")
+set(srcs)
+set(inc_dirs)
 
-set(srcs "additions/esp_cherryusb.c")
-set(inc_dirs "additions" "${cusb_path}/common" "${cusb_path}/core")
+if(CONFIG_CHERRYUSB_SUPPORTED)
+    list(APPEND srcs "additions/esp_cherryusb.c")
+    list(APPEND inc_dirs "additions" "${cusb_path}/common" "${cusb_path}/core")
+endif()
 
 # USB Device sources
 if(CONFIG_CHERRYUSBD_ENABLED)
@@ -107,5 +111,7 @@ idf_component_register(SRCS ${srcs}
     PRIV_REQUIRES usb
 )
 
-include(package_manager)
-cu_pkg_define_version(${CMAKE_CURRENT_LIST_DIR})
+if(CONFIG_CHERRYUSB_SUPPORTED)
+    include(package_manager)
+    cu_pkg_define_version(${CMAKE_CURRENT_LIST_DIR})
+endif()

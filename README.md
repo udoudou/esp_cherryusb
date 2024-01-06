@@ -34,6 +34,14 @@ Please use the component manager command `create-project-from-example` to create
 idf.py create-project-from-example "udoudou/esp_cherryusb=*:cherryusb_device_cdc"
 ```
 
+## How to pull the repository directly as a component
+
+Please create a `components` folder in the project root directory and pull the repository in the components directory.
+
+```
+git clone --recursive https://github.com/udoudou/esp_cherryusb.git
+```
+
 ## How to build the examples
 
 Please refer to the [examples/README.md](./examples/README.md)
