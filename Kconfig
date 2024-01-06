@@ -6,86 +6,88 @@ menu "ESP CherryUSB"
         bool
         default y if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
         
-    config CHERRYUSBD_ENABLED
+    menuconfig CHERRYUSBD_ENABLED
         bool "Enable CherryUSB Device"
         default n
         help
             Enable CherryUSB Device support.
 
-    menu "USB Device Config"
-        visible if CHERRYUSBD_ENABLED
-        config USBDEV_REQUEST_BUFFER_LEN
-            int "Largest size (in bytes) of transfers to ep0 out"
-            depends on CHERRYUSBD_ENABLED
-            default 256
-        config USBDEV_SETUP_LOG_PRINT
-            bool "Print USB setup packet"
-            depends on CHERRYUSBD_ENABLED
-            default n
-        config USBDEV_DESC_CHECK
-            bool "Check USB descriptor"
-            depends on CHERRYUSBD_ENABLED
-            default n
-        config USBDEV_TEST_MODE
-            bool "USB test mode"
-            depends on CHERRYUSBD_ENABLED
-            default n
-    endmenu
+    if CHERRYUSBD_ENABLED
+        menu "USB Device Config"
+            config USBDEV_REQUEST_BUFFER_LEN
+                int "Largest size (in bytes) of transfers to ep0 out"
+                default 256
+            config USBDEV_SETUP_LOG_PRINT
+                bool "Print USB setup packet"
+                default n
+            config USBDEV_DESC_CHECK
+                bool "Check USB descriptor"
+                default n
+            config USBDEV_TEST_MODE
+                bool "USB test mode"
+                default n
+        endmenu
 
-    config CHERRYUSBD_CDC_ENABLED
-        bool "Enable CherryUSB Device CDC ACM"
-        depends on CHERRYUSBD_ENABLED
-        default n
-        help
-            Enable CherryUSB CDC ACM support.
-    config CHERRYUSBD_HID_ENABLED
-        bool "Enable CherryUSB Device HID"
-        depends on CHERRYUSBD_ENABLED
-        default n
-        help
-            Enable CherryUSB HID support.
-    config CHERRYUSBD_MSC_ENABLED
-        bool "Enable CherryUSB Device MSC"
-        depends on CHERRYUSBD_ENABLED
-        default n
-        help
-            Enable CherryUSB MSC support.
-    config CHERRYUSBD_AUDIO_ENABLED
-        bool "Enable CherryUSB Device Audio"
-        depends on CHERRYUSBD_ENABLED
-        default n
-        help
-            Enable CherryUSB Audio support.
-    config CHERRYUSBD_VIDEO_ENABLED
-        bool "Enable CherryUSB Device Video"
-        depends on CHERRYUSBD_ENABLED
-        default n
-        help
-            Enable CherryUSB Video support.
-    config CHERRYUSBD_RNDIS_ENABLED
-        bool "Enable CherryUSB Device RNDIS"
-        depends on CHERRYUSBD_ENABLED
-        default n
-        help
-            Enable CherryUSB RNDIS support.
-    config CHERRYUSBD_DFU_ENABLED
-        bool "Enable CherryUSB Device DFU"
-        depends on CHERRYUSBD_ENABLED
-        default n
-        help
-            Enable CherryUSB DFU support.
-    config CHERRYUSBD_MTP_ENABLED
-        bool "Enable CherryUSB Device MTP"
-        depends on CHERRYUSBD_ENABLED
-        default n
-        help
-            Enable CherryUSB MTP support.
-    config CHERRYUSBD_PRINTER_ENABLED
-        bool "Enable CherryUSB Device Printer"
-        depends on CHERRYUSBD_ENABLED
-        default n
-        help
-            Enable CherryUSB Printer support.
+        menu "USB Device CDC Config"
+        endmenu
+
+        menu "USB Device HID Config"
+        endmenu
+
+        menu "USB Device MSC Config"
+            config CONFIG_USBDEV_MSC_BLOCK_SIZE
+                int "Block size of MSC device"
+                default 512
+            config USBDEV_MSC_MANUFACTURER_STRING
+                string "Manufacturer string"
+                default "Espressif"
+            config USBDEV_MSC_PRODUCT_STRING
+                string "Product string"
+                default "ESP-MSC"
+            config USBDEV_MSC_VERSION_STRING
+                string "Version string"
+                default "0.01"
+            config USBDEV_MSC_THREAD
+                bool "Enable MSC thread"
+                default y
+            config USBDEV_MSC_PRIO
+                int "Priority of the MSC thread"
+                depends on USBDEV_MSC_THREAD
+                default 4
+            config USBDEV_MSC_STACKSIZE
+                int "Stack size of the MSC thread"
+                depends on USBDEV_MSC_THREAD
+                default 3096
+        endmenu
+
+        menu "USB Device Audio Config"
+        endmenu
+
+        menu "USB Device Video Config"
+        endmenu
+
+        menu "USB Device DFU Config"
+        endmenu
+
+        menu "USB Device RNDIS Config"
+            config USBDEV_RNDIS_RESP_BUFFER_SIZE
+                int "RNDIS response buffer size"
+                default 156
+            config USBDEV_RNDIS_ETH_MAX_FRAME_SIZE
+                int "Maximum frame size"
+                default 1536
+            config USBDEV_RNDIS_VENDOR_ID
+                hex "Vendor ID"
+                default 0x0000ffff
+            config USBDEV_RNDIS_VENDOR_DESC
+                string "Vendor description"
+                default "Espressif"
+            config USBDEV_RNDIS_USING_LWIP
+                bool "Using LWIP"
+                default y
+        endmenu
+
+    endif # CHERRYUSBD_ENABLED
 
     config CHERRYUSBH_ENABLED
         bool "Enable CherryUSB Host"
@@ -147,66 +149,6 @@ menu "ESP CherryUSB"
         default n
         help
             Enable CherryUSB Printer support.
-
-    menu "USB Device CDC Config"
-        visible if CHERRYUSBD_CDC_ENABLED
-    endmenu
-
-    menu "USB Device MSC Config"
-        visible if CHERRYUSBD_MSC_ENABLED
-        config CONFIG_USBDEV_MSC_BLOCK_SIZE
-            int "Block size of MSC device"
-            depends on CHERRYUSBD_MSC_ENABLED
-            default 512
-        config USBDEV_MSC_MANUFACTURER_STRING
-            string "Manufacturer string"
-            depends on CHERRYUSBD_MSC_ENABLED
-            default "Espressif"
-        config USBDEV_MSC_PRODUCT_STRING
-            string "Product string"
-            depends on CHERRYUSBD_MSC_ENABLED
-            default "ESP-MSC"
-        config USBDEV_MSC_VERSION_STRING
-            string "Version string"
-            depends on CHERRYUSBD_MSC_ENABLED
-            default "0.01"
-        config USBDEV_MSC_THREAD
-            bool "Enable MSC thread"
-            depends on CHERRYUSBD_MSC_ENABLED
-            default y
-        config USBDEV_MSC_PRIO
-            int "Priority of the MSC thread"
-            depends on USBDEV_MSC_THREAD
-            default 4
-        config USBDEV_MSC_STACKSIZE
-            int "Stack size of the MSC thread"
-            depends on USBDEV_MSC_THREAD
-            default 3096
-    endmenu
-
-    menu "USB Device RNDIS Config"
-        visible if CHERRYUSBD_RNDIS_ENABLED
-        config USBDEV_RNDIS_RESP_BUFFER_SIZE
-            int "RNDIS response buffer size"
-            depends on CHERRYUSBD_RNDIS_ENABLED
-            default 156
-        config USBDEV_RNDIS_ETH_MAX_FRAME_SIZE
-            int "Maximum frame size"
-            depends on CHERRYUSBD_RNDIS_ENABLED
-            default 1536
-        config USBDEV_RNDIS_VENDOR_ID
-            hex "Vendor ID"
-            depends on CHERRYUSBD_RNDIS_ENABLED
-            default 0x0000ffff
-        config USBDEV_RNDIS_VENDOR_DESC
-            string "Vendor description"
-            depends on CHERRYUSBD_RNDIS_ENABLED
-            default "Espressif"
-        config USBDEV_RNDIS_USING_LWIP
-            bool "Using LWIP"
-            depends on CHERRYUSBD_RNDIS_ENABLED
-            default y
-    endmenu
 
     menu "USB Host Config"
         visible if CHERRYUSBH_ENABLED

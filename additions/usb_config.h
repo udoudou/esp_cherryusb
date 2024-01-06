@@ -93,7 +93,9 @@
 #define CONFIG_USBDEV_RNDIS_VENDOR_DESC "CherryUSB"
 #endif
 
+/******
 #define CONFIG_USBDEV_RNDIS_USING_LWIP
+******/
 
 /* ================ USB HOST Stack Configuration ================== */
 // NOTE: Below configurations are removed to Kconfig, `idf.py menuconfig` to config them

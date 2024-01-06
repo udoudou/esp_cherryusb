@@ -12,51 +12,33 @@ if(CONFIG_CHERRYUSBD_ENABLED)
     list(APPEND srcs
         "${cusb_path}/core/usbd_core.c"
         "${cusb_path}/port/dwc2/usb_dc_dwc2.c")
-endif()
 
-if(CONFIG_CHERRYUSBD_CDC_ENABLED)
-    list(APPEND srcs "${cusb_path}/class/cdc/usbd_cdc.c")
-    list(APPEND inc_dirs "${cusb_path}/class/cdc")
-endif()
+        list(APPEND inc_dirs "${cusb_path}/class/cdc")
+        list(APPEND srcs "${cusb_path}/class/cdc/usbd_cdc.c")
+        
+        list(APPEND inc_dirs "${cusb_path}/class/hid")
+        list(APPEND srcs "${cusb_path}/class/hid/usbd_hid.c")
+        
+        list(APPEND inc_dirs "${cusb_path}/class/msc")
+        list(APPEND srcs "${cusb_path}/class/msc/usbd_msc.c")
 
-if(CONFIG_CHERRYUSBD_MSC_ENABLED)
-    list(APPEND srcs "${cusb_path}/class/msc/usbd_msc.c")
-    list(APPEND inc_dirs "${cusb_path}/class/msc")
-endif()
+        list(APPEND inc_dirs "${cusb_path}/class/audio")
+        list(APPEND srcs "${cusb_path}/class/audio/usbd_audio.c")
+    
+        list(APPEND inc_dirs "${cusb_path}/class/video")
+        list(APPEND srcs "${cusb_path}/class/video/usbd_video.c")
+    
+        list(APPEND inc_dirs "${cusb_path}/class/dfu")
+        list(APPEND srcs "${cusb_path}/class/dfu/usbd_dfu.c")
 
-if(CONFIG_CHERRYUSBD_HID_ENABLED)
-    list(APPEND srcs "${cusb_path}/class/hid/usbd_hid.c")
-    list(APPEND inc_dirs "${cusb_path}/class/hid")
-endif()
+        list(APPEND inc_dirs "${cusb_path}/class/wireless")
+        list(APPEND srcs "${cusb_path}/class/wireless/usbd_rndis.c")
 
-if(CONFIG_CHERRYUSBD_AUDIO_ENABLED)
-    list(APPEND srcs "${cusb_path}/class/audio/usbd_audio.c")
-    list(APPEND inc_dirs "${cusb_path}/class/audio")
-endif()
+        # list(APPEND inc_dirs "${cusb_path}/class/mtp")
+        # list(APPEND srcs "${cusb_path}/class/mtp/usbd_mtp.c")
 
-if(CONFIG_CHERRYUSBD_VIDEO_ENABLED)
-    list(APPEND srcs "${cusb_path}/class/video/usbd_video.c")
-    list(APPEND inc_dirs "${cusb_path}/class/video")
-endif()
-
-if(CONFIG_CHERRYUSBD_RNDIS_ENABLED)
-    list(APPEND srcs "${cusb_path}/class/rndis/usbd_rndis.c")
-    list(APPEND inc_dirs "${cusb_path}/class/rndis")
-endif()
-
-if(CONFIG_CHERRYUSBD_DFU_ENABLED)
-    list(APPEND srcs "${cusb_path}/class/dfu/usbd_dfu.c")
-    list(APPEND inc_dirs "${cusb_path}/class/dfu")
-endif()
-
-if(CONFIG_CHERRYUSBD_MTP_ENABLE)
-    list(APPEND srcs "${cusb_path}/class/mtp/usbd_mtp.c")
-    list(APPEND inc_dirs "${cusb_path}/class/mtp")
-endif()
-
-if(CONFIG_CHERRYUSBD_PRINTER_ENABLED)
-    list(APPEND srcs "${cusb_path}/class/printer/usbd_printer.c")
-    list(APPEND inc_dirs "${cusb_path}/class/printer")
+        # list(APPEND inc_dirs "${cusb_path}/class/printer")
+        # list(APPEND srcs "${cusb_path}/class/printer/usbd_printer.c")
 endif()
 
 # USB Host sources
@@ -112,6 +94,9 @@ idf_component_register(SRCS ${srcs}
 )
 
 if(CONFIG_CHERRYUSB_SUPPORTED)
+    set_source_files_properties("${cusb_path}/class/audio/usbd_audio.c"
+        PROPERTIES COMPILE_FLAGS
+        -Wno-maybe-uninitialized)
     include(package_manager)
     cu_pkg_define_version(${CMAKE_CURRENT_LIST_DIR})
 endif()
