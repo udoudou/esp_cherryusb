@@ -15,6 +15,7 @@
 #include "fcntl.h"
 #include "utime.h"
 
+#include "esp_vfs_fat.h"
 #include "esp_log.h"
 
 static char *TAG = "esp_mtp";
@@ -206,11 +207,12 @@ static mtp_response_code_t get_storage_info(esp_mtp_handle_t handle)
     *(mtp_access_cap_t *)data = MTP_ACCESS_CAP_RW;          // Access Capability
     data += sizeof(mtp_access_cap_t);
 
-
-    *(uint64_t *)data = 1024 * 1024 * 1024;                                   // Max Capacity
+    uint64_t total_bytes = 0, out_free_bytes = 0;
+    esp_vfs_fat_info("/sdcard", &total_bytes, &out_free_bytes);
+    *(uint64_t *)data = total_bytes;                                   // Max Capacity
     data += sizeof(uint64_t);
 
-    *(uint64_t *)data = 1024;                               // Free space in Bytes
+    *(uint64_t *)data = out_free_bytes;                               // Free space in Bytes
     data += sizeof(uint64_t);
 
     *(uint32_t *)data = 0xFFFFFFFF;                               // Free Space In Objects
@@ -379,8 +381,6 @@ static mtp_response_code_t get_object_info(esp_mtp_handle_t handle)
     *data = handle->buff + handle->buffer_size - data;
     data = (uint8_t *)esp_mtp_utf8_to_utf16(entry->name, (char *)data + 1, data);    // Filename
 
-    struct tm timeinfo;
-    char timestr[48];
     // Date Created "YYYYMMDDThhmmss.s"
     *data = handle->buff + handle->buffer_size - data;
     data = (uint8_t *)esp_mtp_time_to_utf16_datatime(st.st_ctime, (char *)data + 1, data);
@@ -1077,7 +1077,6 @@ void esp_mtp_read_async_cb(esp_mtp_handle_t handle, int len)
 
 void esp_mtp_write_async_cb(esp_mtp_handle_t handle, int len)
 {
-    // USB_LOG_DBG("send:%d\r\n", len);
     BaseType_t high_task_wakeup = pdFALSE;
     xTaskNotifyFromISR(handle->task_hdl, ASYNC_WRITE_NOTIFY_BIT, eSetBits, &high_task_wakeup);
     if (high_task_wakeup == pdTRUE) {
