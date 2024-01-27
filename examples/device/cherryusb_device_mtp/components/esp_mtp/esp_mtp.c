@@ -13,6 +13,7 @@
 #include "sys/stat.h"
 #include "unistd.h"
 #include "fcntl.h"
+#include "utime.h"
 
 #include "esp_log.h"
 
@@ -104,7 +105,7 @@ static mtp_response_code_t get_device_info(esp_mtp_handle_t handle)
     *(uint16_t *)data = MTP_VENDOR_EXTN_VERSION;   // MTP Version
     data += 2;
     *data = handle->buff + handle->buffer_size - data;
-    data = esp_mtp_utf8_to_utf16(MTP_VENDOR_EXTENSIONDESC_CHAR, data + 1, data);    // MTP Extensions
+    data = (uint8_t *)esp_mtp_utf8_to_utf16(MTP_VENDOR_EXTENSIONDESC_CHAR, (char *)data + 1, data);    // MTP Extensions
     *(mtp_functional_mode_t *)data = MTP_FUNCTIONAL_STANDARD;            // Functional Mode
     data += sizeof(mtp_functional_mode_t);
 
@@ -143,16 +144,16 @@ static mtp_response_code_t get_device_info(esp_mtp_handle_t handle)
     data += sizeof(mtp_object_format_code_t);
 
     *data = handle->buff + handle->buffer_size - data;
-    data = esp_mtp_utf8_to_utf16("Espressif", data + 1, data);    // Manufacturer
+    data = (uint8_t *)esp_mtp_utf8_to_utf16("Espressif", (char *)data + 1, data);    // Manufacturer
 
     *data = handle->buff + handle->buffer_size - data;
-    data = esp_mtp_utf8_to_utf16("ESP32-S3", data + 1, data);    // Model
+    data = (uint8_t *)esp_mtp_utf8_to_utf16("ESP32-S3", (char *)data + 1, data);    // Model
 
     *data = handle->buff + handle->buffer_size - data;
-    data = esp_mtp_utf8_to_utf16("0.0.1", data + 1, data);    // Device Version
+    data = (uint8_t *)esp_mtp_utf8_to_utf16("0.0.1", (char *)data + 1, data);    // Device Version
 
     *data = handle->buff + handle->buffer_size - data;
-    data = esp_mtp_utf8_to_utf16("123456", data + 1, data);    // Serial Number
+    data = (uint8_t *)esp_mtp_utf8_to_utf16("123456", (char *)data + 1, data);    // Serial Number
 
     container->len = data - handle->buff;
     handle->write(handle->pipe_context, handle->buff, container->len);
@@ -217,10 +218,10 @@ static mtp_response_code_t get_storage_info(esp_mtp_handle_t handle)
 
 
     *data = handle->buff + handle->buffer_size - data;
-    data = esp_mtp_utf8_to_utf16("test", data + 1, data);    // Storage Description
+    data = (uint8_t *)esp_mtp_utf8_to_utf16("test", (char *)data + 1, data);    // Storage Description
 
     *data = handle->buff + handle->buffer_size - data;
-    data = esp_mtp_utf8_to_utf16("0", data + 1, data);    // Volume Identifier
+    data = (uint8_t *)esp_mtp_utf8_to_utf16("0", (char *)data + 1, data);    // Volume Identifier
 
     container->len = data - handle->buff;
     handle->write(handle->pipe_context, handle->buff, container->len);
@@ -376,26 +377,20 @@ static mtp_response_code_t get_object_info(esp_mtp_handle_t handle)
     data += sizeof(uint32_t);
 
     *data = handle->buff + handle->buffer_size - data;
-    data = esp_mtp_utf8_to_utf16(entry->name, data + 1, data);    // Filename
+    data = (uint8_t *)esp_mtp_utf8_to_utf16(entry->name, (char *)data + 1, data);    // Filename
 
     struct tm timeinfo;
     char timestr[48];
     // Date Created "YYYYMMDDThhmmss.s"
-    time_t t = st.st_ctime;
-    localtime_r(&t, &timeinfo);
-    snprintf(timestr, sizeof(timestr), "%.4d%.2d%.2dT%.2d%.2d%.2d", 1900 + timeinfo.tm_year, timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     *data = handle->buff + handle->buffer_size - data;
-    data = esp_mtp_utf8_to_utf16(timestr, data + 1, data);
+    data = (uint8_t *)esp_mtp_time_to_utf16_datatime(st.st_ctime, (char *)data + 1, data);
 
     // Date Modified "YYYYMMDDThhmmss.s"
-    t = st.st_mtime;
-    localtime_r(&t, &timeinfo);
-    snprintf(timestr, sizeof(timestr), "%.4d%.2d%.2dT%.2d%.2d%.2d", 1900 + timeinfo.tm_year, timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
     *data = handle->buff + handle->buffer_size - data;
-    data = esp_mtp_utf8_to_utf16(timestr, data + 1, data);
+    data = (uint8_t *)esp_mtp_time_to_utf16_datatime(st.st_mtime, (char *)data + 1, data);
 
     // *data = handle->buff + handle->buffer_size - data;
-    // data = esp_mtp_utf8_to_utf16("", data + 1, data);    // Keywords(未使用)
+    // data = (uint8_t*)esp_mtp_utf8_to_utf16("", (char*)data + 1, data);    // Keywords(未使用)
     *data = 0x0;
     data++;
 
@@ -593,6 +588,7 @@ static mtp_response_code_t send_object_info(esp_mtp_handle_t handle)
 {
     uint8_t *data;
     uint32_t parent_handle;
+    uint32_t object_handle;
     uint32_t storage_id;
     mtp_container_t *container = (mtp_container_t *)handle->buff;
 
@@ -665,21 +661,24 @@ static mtp_response_code_t send_object_info(esp_mtp_handle_t handle)
     uint8_t str_len;
     str_len = *data;
     data += sizeof(uint8_t);
-    char filename[256];
-    uint8_t temp_len;
-    esp_mtp_utf16_to_utf8((char *)data, (uint8_t *)filename, &temp_len);
+    char filename[255];
+    uint8_t temp_len = sizeof(filename);
+    esp_mtp_utf16_to_utf8((char *)data, filename, &temp_len);
     ESP_LOGW(TAG, "%s %s", __FUNCTION__, filename);
 
     data += (str_len * 2);
 
-    //Ignore Date Created "YYYYMMDDThhmmss.s"
+    struct utimbuf times;
+    //Date Created "YYYYMMDDThhmmss.s"
     str_len = *data;
     data += sizeof(uint8_t);
+    times.actime = esp_mtp_utf16_datatime_to_time((char *)data);
     data += (str_len * 2);
 
-    //Ignore Date Modified "YYYYMMDDThhmmss.s"
+    //Date Modified "YYYYMMDDThhmmss.s"
     str_len = *data;
     data += sizeof(uint8_t);
+    times.modtime = esp_mtp_utf16_datatime_to_time((char *)data);
     data += (str_len * 2);
 
     //Skip No Use Keywords
@@ -732,12 +731,13 @@ static mtp_response_code_t send_object_info(esp_mtp_handle_t handle)
     if (container->response.send_object_info.parent_handle == 0) {
         container->response.send_object_info.parent_handle = 0xFFFFFFFF;
     }
-    container->response.send_object_info.object_handle = esp_mtp_file_list_add(&handle->handle_list, 0x00010001, parent_handle, filename);
-    if (container->response.send_object_info.object_handle == 0) {
+    object_handle = esp_mtp_file_list_add(&handle->handle_list, 0x00010001, parent_handle, filename);
+    if (object_handle == 0) {
         ESP_LOGW(TAG, "add file list fail");
         req = MTP_RESPONSE_ACCESS_DENIED;
         goto exit;
     }
+    container->response.send_object_info.object_handle = object_handle;
     container->len = MTP_CONTAINER_HEAD_LEN + 12;
     container->type = MTP_CONTAINER_RESPONSE;
     container->res = MTP_RESPONSE_OK;
@@ -826,9 +826,18 @@ static mtp_response_code_t send_object_info(esp_mtp_handle_t handle)
             ESP_LOGI(TAG, "recv file ok");
         }
     }
+
 exit:
     if (fd >= 0) {
         close(fd);
+    }
+    if (object_handle != 0) {
+        //todo
+        strcpy((char *)container->data, "/sdcard");
+        data = container->data + strlen((char *)container->data);
+        if (esp_mtp_file_list_find(&handle->handle_list, object_handle, (char *)data, handle->buff + handle->buffer_size - data) != NULL) {
+            utime((char *)container->data, &times);
+        }
     }
     return req;
 }

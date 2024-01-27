@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <time.h>
 #include <stdint.h>
 
 #define MTP_FILE_LIST_SIZE 64
@@ -26,9 +27,29 @@ typedef struct {
     esp_mtp_file_list_t list;
 }esp_mtp_file_handle_list_t;
 
-uint8_t *esp_mtp_utf8_to_utf16(const char *utf8, uint8_t *out, uint8_t *len);
+/** @brief UTF8 转 UTF16
+ *
+ * @param utf16 需要转换的 UTF8 字符串
+ * @param[out] out 保存转换后的 UTF16 字符串
+ * @param[in out] len 输入保存空间的长度，输出完成转换的 UTF16 字符数（含结束符）
+ *
+ * @return 保存结束符的下一个内存地址
+ */
+char *esp_mtp_utf8_to_utf16(const char *utf8, char *out, uint8_t *len);
 
-uint8_t *esp_mtp_utf16_to_utf8(const char *utf16, uint8_t *out, uint8_t *len);
+char *esp_mtp_time_to_utf16_datatime(time_t time, char *out, uint8_t *len);
+
+/** @brief UTF16 转 UTF8
+ *
+ * @param utf16 需要转换的 UTF16 字符串
+ * @param[out] out 保存转换后的 UTF8 字符串
+ * @param[in out] len 输入保存空间的长度，输出完成转换的 UTF8 字符数（含结束符）
+ *
+ * @return 保存结束符的下一个内存地址
+ */
+char *esp_mtp_utf16_to_utf8(const char *utf16, char *out, uint8_t *len);
+
+time_t esp_mtp_utf16_datatime_to_time(const char *utf16);
 
 void esp_mtp_file_list_init(esp_mtp_file_handle_list_t *file_list);
 

@@ -10,11 +10,11 @@
 #include <stdio.h>
 #include "inttypes.h"
 
-uint8_t *esp_mtp_utf8_to_utf16(const char *utf8, uint8_t *out, uint8_t *len)
+char *esp_mtp_utf8_to_utf16(const char *utf8, char *out, uint8_t *len)
 {
-    uint16_t *out_start = (uint16_t *)out;
-    uint16_t *out_end = out_start;
-    while (*utf8 != '\0') {
+    uint16_t *utf16_ptr = (uint16_t *)out;
+    uint16_t *utf16_end_ptr = utf16_ptr + (*len / 2) - 1;
+    while (*utf8 != '\0' && utf16_ptr < utf16_end_ptr) {
         uint16_t temp;
         temp = *(utf8++);
         if (temp & 0x80) {
@@ -42,34 +42,82 @@ uint8_t *esp_mtp_utf8_to_utf16(const char *utf8, uint8_t *out, uint8_t *len)
                 break;
             }
         }
-        *(out_end++) = temp;
+        *(utf16_ptr++) = temp;
     }
-    *(out_end++) = 0x0000;
-    *len = out_end - out_start;
-    return (uint8_t *)out_end;
+    *(utf16_ptr++) = 0x0000;
+    *len = utf16_ptr - (uint16_t *)out;
+    return (char *)utf16_ptr;
 }
 
-uint8_t *esp_mtp_utf16_to_utf8(const char *utf16, uint8_t *out, uint8_t *len)
+char *esp_mtp_time_to_utf16_datatime(time_t time, char *out, uint8_t *len)
+{
+    struct tm timeinfo;
+    char buff[24];
+    localtime_r(&time, &timeinfo);
+    // snprintf(buff, sizeof(buff), "%.4d%.2d%.2dT%.2d%.2d%.2d", 1900 + timeinfo.tm_year, timeinfo.tm_mon + 1, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+    strftime(buff, sizeof(buff), "%Y%m%dT%H%M%S", &timeinfo);
+    return esp_mtp_utf8_to_utf16(buff, out, len);
+}
+
+char *esp_mtp_utf16_to_utf8(const char *utf16, char *out, uint8_t *len)
 {
     uint16_t *utf16_ptr = (uint16_t *)utf16;
-    uint8_t *out_start = out;
+    char *out_end = out + *len - 1;
+    *len = 1;
     while (*utf16_ptr != 0x0) {
         uint16_t temp = *(utf16_ptr++);
         if (temp <= 0x7F) {
+            if (out >= out_end) {
+                break;
+            }
             *(out++) = temp;
-            continue;
         } else if (temp <= 0x7FF) {
+            if (out + 1 >= out_end) {
+                break;
+            }
             *(out++) = (temp >> 6) | 0xC0;
             *(out++) = (temp & 0x3F) | 0x80;
-            continue;
+        } else {
+            if (out + 2 >= out_end) {
+                break;
+            }
+            *(out++) = (temp >> 12) | 0xE0;
+            *(out++) = ((temp >> 6) & 0x3F) | 0x80;
+            *(out++) = (temp & 0x3F) | 0x80;
         }
-        *(out++) = (temp >> 12) | 0xE0;
-        *(out++) = ((temp >> 6) & 0x3F) | 0x80;
-        *(out++) = (temp & 0x3F) | 0x80;
+        *len = *len + 1;
     }
     *(out++) = 0x00;
-    *len = (out - out_start);
     return out;
+}
+
+time_t esp_mtp_utf16_datatime_to_time(const char *utf16)
+{
+    //"YYYYMMDDThhmmss.s",".s" 可选
+    char buff[24];
+    uint16_t *utf16_ptr = (uint16_t *)utf16;
+    uint16_t *time_end = utf16_ptr + (sizeof("YYYYMMDDThhmmss") - 1);
+    if (*time_end != 0 && *time_end != '.') {
+        return 0;
+    }
+    char *data = buff;
+    while (utf16_ptr < time_end) {
+        if (*utf16_ptr > 0x7F) {
+            return 0;
+        }
+        *(data++) = *(utf16_ptr++);
+        uint32_t off;
+        off = utf16_ptr - (uint16_t *)utf16;
+        if (off == 4 || off == 6 || off == 11 || off == 13) {
+            *(data++) = '-';
+        }
+    }
+    *(data) = '\0';
+    struct tm tm_time;
+    if (strptime((char *)buff, "%Y-%m-%dT%H-%M-%S", &tm_time) != data) {
+        return 0;
+    }
+    return mktime(&tm_time);
 }
 
 void esp_mtp_file_list_init(esp_mtp_file_handle_list_t *file_list)
