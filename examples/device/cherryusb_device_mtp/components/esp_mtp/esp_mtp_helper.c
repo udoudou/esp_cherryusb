@@ -10,6 +10,10 @@
 #include <stdio.h>
 #include "inttypes.h"
 
+#ifdef CONFIG_SPIRAM_BOOT_INIT
+#include "esp_heap_caps.h"
+#endif
+
 char *esp_mtp_utf8_to_utf16(const char *utf8, char *out, uint8_t *len)
 {
     uint16_t *utf16_ptr = (uint16_t *)out;
@@ -131,14 +135,22 @@ uint32_t esp_mtp_file_list_add(esp_mtp_file_handle_list_t *file_list, uint32_t s
     list = &file_list->list;
     for (uint32_t i = 1; i <= file_list->count / MTP_FILE_LIST_SIZE; i++) {
         if (list->next == NULL) {
+#if defined CONFIG_SPIRAM_USE_MALLOC || defined CONFIG_SPIRAM_USE_CAPS_ALLOC
+            list->next = (esp_mtp_file_list_t *)heap_caps_calloc(1, sizeof(esp_mtp_file_list_t), MALLOC_CAP_DEFAULT | MALLOC_CAP_SPIRAM);
+#else            
             list->next = (esp_mtp_file_list_t *)calloc(1, sizeof(esp_mtp_file_list_t));
+#endif
             if (list->next == NULL) {
                 return 0;
             }
         }
         list = list->next;
     }
+#if defined CONFIG_SPIRAM_USE_MALLOC || defined CONFIG_SPIRAM_USE_CAPS_ALLOC
+    list->entry_list[file_list->count % MTP_FILE_LIST_SIZE].name = (char *)heap_caps_malloc(strlen(name) + 1, MALLOC_CAP_DEFAULT | MALLOC_CAP_SPIRAM);
+#else
     list->entry_list[file_list->count % MTP_FILE_LIST_SIZE].name = (char *)malloc(strlen(name) + 1);
+#endif
     if (list->entry_list[file_list->count % MTP_FILE_LIST_SIZE].name == NULL) {
         return 0;
     }
@@ -182,6 +194,28 @@ const esp_mtp_file_entry_t *esp_mtp_file_list_find(esp_mtp_file_handle_list_t *f
     path[path_len++] = '/';
     strcpy(path + path_len, entry->name);
     return entry;
+}
+
+void esp_mtp_file_list_clean(esp_mtp_file_handle_list_t *file_list)
+{
+    esp_mtp_file_list_t *list;
+    esp_mtp_file_list_t *next;
+
+    list = &file_list->list;
+    do {
+        for (uint32_t i = 0; i < MTP_FILE_LIST_SIZE; i++) {
+            if (list->entry_list[i].name) {
+                free(list->entry_list[i].name);
+            }
+        }
+        next = list->next;
+        if (list != &file_list->list) {
+            free(list);
+        }
+        list = next;
+    } while (list != NULL);
+    memset(&file_list->list, 0, sizeof(file_list->list));
+    file_list->count = 0;
 }
 
 uint8_t *esp_mtp_file_list_fill_handle_array(esp_mtp_file_handle_list_t *file_list, uint32_t parent, uint8_t *out, uint32_t *len)

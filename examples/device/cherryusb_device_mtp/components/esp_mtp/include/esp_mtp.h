@@ -22,8 +22,12 @@ typedef enum {
     ESP_MTP_FLAG_MAX = 0xFFFFFFFF,
 } __attribute__((packed)) esp_mtp_flags_t;
 
+#define ESP_MTP_STOP_CMD    0
+#define ESP_MTP_EXIT_CMD    -1
+
 typedef struct {
     void *pipe_context;
+    void (*wait_start)(void *pipe_context);
     int (*read)(void *pipe_context, uint8_t *buffer, int len);
     int (*write)(void *pipe_context, const uint8_t *buffer, int len);
     esp_mtp_flags_t flags;

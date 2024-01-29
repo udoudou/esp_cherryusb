@@ -53,3 +53,5 @@ struct usbd_interface *usbd_mtp_init_intf(struct usbd_interface *intf,
     const uint8_t out_ep,
     const uint8_t in_ep,
     const uint8_t int_ep);
+
+void usbd_mtp_deinit(void);

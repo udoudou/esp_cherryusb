@@ -198,9 +198,24 @@ void app_main(void)
 {
     void sd_main(void);
     sd_main();
+    uint32_t before = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
     usbd_desc_register(mtp_descriptor);
     usbd_msosv1_desc_register(&msosv1_desc);
     usbd_bos_desc_register(&bos_desc);
     usbd_add_interface(usbd_mtp_init_intf(&intf0, CDC_OUT_EP, CDC_IN_EP, CDC_INT_EP));
     usbd_initialize();
+    while (1){
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        usbd_mtp_deinit();
+        usbd_deinitialize();
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+        uint32_t now;
+        now = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
+        ESP_LOGW(TAG, "use %"PRIu32, before - now);
+        usbd_desc_register(mtp_descriptor);
+        usbd_msosv1_desc_register(&msosv1_desc);
+        usbd_bos_desc_register(&bos_desc);
+        usbd_add_interface(usbd_mtp_init_intf(&intf0, CDC_OUT_EP, CDC_IN_EP, CDC_INT_EP));
+        usbd_initialize();
+    }
 }

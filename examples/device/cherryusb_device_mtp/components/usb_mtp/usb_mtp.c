@@ -19,10 +19,19 @@
 #define MTP_IN_EP_IDX  1
 #define MTP_INT_EP_IDX 2
 
+typedef enum {
+    USB_MTP_CLOSE,
+    USB_MTP_INIT,
+    USB_MTP_RUN,
+    USB_MTP_STOPPING,
+} usb_mtp_status_t;
+
 /* Describe EndPoints configuration */
 static struct usbd_endpoint mtp_ep_data[3];
 static TaskHandle_t s_mtp_task_handle;
 esp_mtp_handle_t s_handle;
+static usb_mtp_status_t s_mtp_status = USB_MTP_CLOSE;
+static portMUX_TYPE s_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 static int mtp_class_interface_request_handler(struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
 {
@@ -68,11 +77,23 @@ static void mtp_notify_handler(uint8_t event, void *arg)
     BaseType_t high_task_wakeup = pdFALSE;
     switch (event) {
     case USBD_EVENT_RESET:
+        portENTER_CRITICAL_ISR(&s_spinlock);
+        if (s_mtp_status != USB_MTP_CLOSE && s_mtp_status != USB_MTP_INIT) {
+            s_mtp_status = USB_MTP_STOPPING;
+        }
+        portEXIT_CRITICAL_ISR(&s_spinlock);
         break;
     case USBD_EVENT_CONFIGURED:
-        USB_LOG_DBG("Start reading command\r\n");
-        vTaskNotifyGiveFromISR(s_mtp_task_handle, &high_task_wakeup);
-
+        bool need_wake = false;
+        portENTER_CRITICAL_ISR(&s_spinlock);
+        if (s_mtp_status == USB_MTP_INIT) {
+            need_wake = true;
+            s_mtp_status = USB_MTP_RUN;
+        }
+        portEXIT_CRITICAL_ISR(&s_spinlock);
+        if (need_wake) {
+            vTaskNotifyGiveFromISR(s_mtp_task_handle, &high_task_wakeup);
+        }
         break;
     case USBD_EVENT_DISCONNECTED:
         vTaskNotifyGiveFromISR(s_mtp_task_handle, &high_task_wakeup);
@@ -85,14 +106,36 @@ static void mtp_notify_handler(uint8_t event, void *arg)
     }
 }
 
+static void usb_wait_start(void *pipe_context)
+{
+    portENTER_CRITICAL(&s_spinlock);
+    if (s_mtp_status != USB_MTP_STOPPING) {
+        portEXIT_CRITICAL(&s_spinlock);
+        return;
+    }
+    s_mtp_status = USB_MTP_INIT;
+    portEXIT_CRITICAL(&s_spinlock);
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+}
+
 static int usb_write(void *pipe_context, const uint8_t *data, int data_size)
 {
+    if (s_mtp_status != USB_MTP_RUN) {
+        data_size = (s_mtp_status != USB_MTP_CLOSE) ? ESP_MTP_STOP_CMD : ESP_MTP_EXIT_CMD;
+        esp_mtp_write_async_cb(s_handle, data_size);
+        return data_size;
+    }
     usbd_ep_start_write(mtp_ep_data[MTP_IN_EP_IDX].ep_addr, data, data_size);
     return data_size;
 }
 
 static int usb_read(void *pipe_context, uint8_t *data, int data_size)
 {
+    if (s_mtp_status != USB_MTP_RUN) {
+        data_size = (s_mtp_status != USB_MTP_CLOSE) ? ESP_MTP_STOP_CMD : ESP_MTP_EXIT_CMD;
+        esp_mtp_read_async_cb(s_handle, data_size);
+        return data_size;
+    }
     usbd_ep_start_read(mtp_ep_data[MTP_OUT_EP_IDX].ep_addr, data, data_size);
     return data_size;
 }
@@ -120,7 +163,10 @@ struct usbd_interface *usbd_mtp_init_intf(struct usbd_interface *intf,
     usbd_add_endpoint(&mtp_ep_data[MTP_IN_EP_IDX]);
     usbd_add_endpoint(&mtp_ep_data[MTP_INT_EP_IDX]);
 
+    s_mtp_status = USB_MTP_STOPPING;
+
     esp_mtp_config_t config = {
+        .wait_start = usb_wait_start,
         .read = usb_read,
         .write = usb_write,
         .flags = ESP_MTP_FLAG_ASYNC_READ | ESP_MTP_FLAG_ASYNC_WRITE,
@@ -137,4 +183,18 @@ struct usbd_interface *usbd_mtp_init_intf(struct usbd_interface *intf,
     s_mtp_task_handle = esp_mtp_get_task_handle(s_handle);
 
     return intf;
+}
+
+void usbd_mtp_deinit(void)
+{
+    usb_mtp_status_t mtp_status;
+    portENTER_CRITICAL(&s_spinlock);
+    mtp_status = s_mtp_status;
+    s_mtp_status = USB_MTP_CLOSE;
+    portEXIT_CRITICAL(&s_spinlock);
+    if (mtp_status == USB_MTP_RUN) {
+        esp_mtp_read_async_cb(s_handle, ESP_MTP_EXIT_CMD);
+    } else if (mtp_status == USB_MTP_INIT) {
+        xTaskNotifyGive(s_mtp_task_handle);
+    }
 }

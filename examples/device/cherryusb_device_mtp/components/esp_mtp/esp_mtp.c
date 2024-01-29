@@ -17,6 +17,9 @@
 
 #include "esp_vfs_fat.h"
 #include "esp_log.h"
+#ifdef CONFIG_SPIRAM_BOOT_INIT
+#include "esp_heap_caps.h"
+#endif
 
 static char *TAG = "esp_mtp";
 
@@ -25,6 +28,7 @@ static char *TAG = "esp_mtp";
 
 typedef struct esp_mtp {
     void *pipe_context;
+    void (*wait_start)(void *pipe_context);
     int (*read)(void *pipe_context, uint8_t *buffer, int len);
     int (*write)(void *pipe_context, const uint8_t *buffer, int len);
     esp_mtp_flags_t flags;
@@ -315,7 +319,7 @@ static mtp_response_code_t get_object_info(esp_mtp_handle_t handle)
     if (entry == NULL) {
         return MTP_RESPONSE_INVALID_OBJECT_HANDLE;
     }
-    ESP_LOGW(TAG, "%s %s", __FUNCTION__, (char *)container->data);
+    ESP_LOGD(TAG, "%s %s", __FUNCTION__, (char *)container->data);
     struct stat st;
     if (stat((char *)container->data, &st) != 0) {
         return MTP_RESPONSE_INVALID_OBJECT_HANDLE;
@@ -414,7 +418,7 @@ static mtp_response_code_t _get_object_common(esp_mtp_handle_t handle, uint32_t 
     if (esp_mtp_file_list_find(&handle->handle_list, object_handle, (char *)data, handle->buff + handle->buffer_size - data) == NULL) {
         return MTP_RESPONSE_INVALID_OBJECT_HANDLE;
     }
-    ESP_LOGW(TAG, "%s %s", __FUNCTION__, (char *)container->data);
+    ESP_LOGD(TAG, "%s %s", __FUNCTION__, (char *)container->data);
 
     int fd;
     struct stat st;
@@ -664,7 +668,7 @@ static mtp_response_code_t send_object_info(esp_mtp_handle_t handle)
     char filename[255];
     uint8_t temp_len = sizeof(filename);
     esp_mtp_utf16_to_utf8((char *)data, filename, &temp_len);
-    ESP_LOGW(TAG, "%s %s", __FUNCTION__, filename);
+    ESP_LOGD(TAG, "%s %s", __FUNCTION__, filename);
 
     data += (str_len * 2);
 
@@ -709,7 +713,7 @@ static mtp_response_code_t send_object_info(esp_mtp_handle_t handle)
     *data = '/';
     data++;
     strcpy((char *)data, filename);
-    ESP_LOGW(TAG, "%s %s", __FUNCTION__, (char *)container->data);
+    ESP_LOGD(TAG, "%s %s", __FUNCTION__, (char *)container->data);
 
     int fd = -1;
     if (object_format != MTP_OBJECT_FORMAT_ASSOCIATION) {
@@ -958,7 +962,9 @@ static void esp_mtp_task(void *args)
     container = (mtp_container_t *)handle->buff;
 
 wait:
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    esp_mtp_file_list_clean(&handle->handle_list);
+    handle->wait_start(handle->pipe_context);
+    ESP_LOGW(TAG, "MTP task start");
     while (1) {
         len = handle->read(handle->pipe_context, handle->buff, handle->buffer_size);
         if (handle->flags & ESP_MTP_FLAG_ASYNC_READ) {
@@ -1032,6 +1038,7 @@ wait:
 
     }
     ESP_LOGW(TAG, "MTP task exit");
+    esp_mtp_file_list_clean(&handle->handle_list);
     free(handle);
     vTaskDelete(NULL);
 }
@@ -1044,12 +1051,16 @@ esp_mtp_handle_t esp_mtp_init(const esp_mtp_config_t *config)
     if (buffer_size < 1024) {
         buffer_size = 1024;
     }
-
+#ifndef CONFIG_SPIRAM_USE_MALLOC
     handle = malloc(sizeof(esp_mtp_t) + MTP_CONTAINER_HEAD_LEN + buffer_size);
+#else
+    handle = heap_caps_malloc(sizeof(esp_mtp_t) + MTP_CONTAINER_HEAD_LEN + buffer_size, MALLOC_CAP_DEFAULT | MALLOC_CAP_INTERNAL);
+#endif
 
     esp_mtp_file_list_init(&handle->handle_list);
 
     handle->pipe_context = config->pipe_context;
+    handle->wait_start = config->wait_start;
     handle->read = config->read;
     handle->write = config->write;
     handle->flags = config->flags;
@@ -1066,21 +1077,29 @@ _exit:
 
 void esp_mtp_read_async_cb(esp_mtp_handle_t handle, int len)
 {
-    BaseType_t high_task_wakeup;
-    high_task_wakeup = pdFALSE;
     handle->async_read_len = len;
-    xTaskNotifyFromISR(handle->task_hdl, ASYNC_READ_NOTIFY_BIT, eSetBits, &high_task_wakeup);
-    if (high_task_wakeup == pdTRUE) {
-        portYIELD_FROM_ISR();
+    if (xPortInIsrContext()) {
+        BaseType_t high_task_wakeup;
+        high_task_wakeup = pdFALSE;
+        xTaskNotifyFromISR(handle->task_hdl, ASYNC_READ_NOTIFY_BIT, eSetBits, &high_task_wakeup);
+        if (high_task_wakeup == pdTRUE) {
+            portYIELD_FROM_ISR();
+        }
+    } else {
+        xTaskNotify(handle->task_hdl, ASYNC_READ_NOTIFY_BIT, eSetBits);
     }
 }
 
 void esp_mtp_write_async_cb(esp_mtp_handle_t handle, int len)
 {
-    BaseType_t high_task_wakeup = pdFALSE;
-    xTaskNotifyFromISR(handle->task_hdl, ASYNC_WRITE_NOTIFY_BIT, eSetBits, &high_task_wakeup);
-    if (high_task_wakeup == pdTRUE) {
-        portYIELD_FROM_ISR();
+    if (xPortInIsrContext()) {
+        BaseType_t high_task_wakeup = pdFALSE;
+        xTaskNotifyFromISR(handle->task_hdl, ASYNC_WRITE_NOTIFY_BIT, eSetBits, &high_task_wakeup);
+        if (high_task_wakeup == pdTRUE) {
+            portYIELD_FROM_ISR();
+        }
+    } else {
+        xTaskNotify(handle->task_hdl, ASYNC_WRITE_NOTIFY_BIT, eSetBits);
     }
 }
 
