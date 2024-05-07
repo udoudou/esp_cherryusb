@@ -13,51 +13,7 @@
 #include "usbd_core.h"
 #include "usb_mtp.h"
 
-static char *TAG = "device_cdc_main";
-
-#define WCID_VENDOR_CODE 0x01
-
-__ALIGN_BEGIN const uint8_t WCID_StringDescriptor_MSOS[18] __ALIGN_END = {
-    ///////////////////////////////////////
-    /// MS OS string descriptor
-    ///////////////////////////////////////
-    0x12,                       /* bLength */
-    USB_DESCRIPTOR_TYPE_STRING, /* bDescriptorType */
-    /* MSFT100 */
-    'M', 0x00, 'S', 0x00, 'F', 0x00, 'T', 0x00, /* wcChar_7 */
-    '1', 0x00, '0', 0x00, '0', 0x00,            /* wcChar_7 */
-    WCID_VENDOR_CODE,                           /* bVendorCode */
-    0x00,                                       /* bReserved */
-};
-
-__ALIGN_BEGIN const uint8_t WINUSB_WCIDDescriptor[40] __ALIGN_END = {
-    ///////////////////////////////////////
-    /// WCID descriptor
-    ///////////////////////////////////////
-    0x28, 0x00, 0x00, 0x00,                   /* dwLength */
-    0x00, 0x01,                               /* bcdVersion */
-    0x04, 0x00,                               /* wIndex */
-    0x01,                                     /* bCount */
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* bReserved_7 */
-
-    ///////////////////////////////////////
-    /// WCID function descriptor
-    ///////////////////////////////////////
-    0x00, /* bFirstInterfaceNumber */
-    0x01, /* bReserved */
-    /* MTP */
-    'M', 'T', 'P', 0x00, 0x00, 0x00, 0x00, 0x00, /* cCID_8 */
-    /*  */
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* cSubCID_8 */
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,             /* bReserved_6 */
-};
-
-struct usb_msosv1_descriptor msosv1_desc = {
-    .string = (uint8_t *)WCID_StringDescriptor_MSOS,
-    .vendor_code = WCID_VENDOR_CODE,
-    .compat_id = (uint8_t *)WINUSB_WCIDDescriptor,
-    .comp_id_property = NULL,
-};
+static char *TAG = "device_mtp_main";
 
 /*!< endpoint address */
 #define CDC_IN_EP  0x81
@@ -79,7 +35,7 @@ struct usb_msosv1_descriptor msosv1_desc = {
 #endif
 
 const uint8_t mtp_descriptor[] = {
-    USB_DEVICE_DESCRIPTOR_INIT(USB_2_1, 0x00, 0x00, 0x00, USBD_VID, USBD_PID, 0x0201, 0x01),
+    USB_DEVICE_DESCRIPTOR_INIT(USB_2_0, 0x00, 0x00, 0x00, USBD_VID, USBD_PID, 0x0201, 0x01),
     USB_CONFIG_DESCRIPTOR_INIT(USB_CONFIG_SIZE, 0x01, 0x01, USB_CONFIG_BUS_POWERED, USBD_MAX_POWER),
     MTP_DESCRIPTOR_INIT(0x00, CDC_OUT_EP, CDC_IN_EP, CDC_INT_EP, MTP_MAX_MPS, 0x02),
     ///////////////////////////////////////
@@ -156,12 +112,6 @@ const uint8_t mtp_descriptor[] = {
     0x00
 };
 
-const uint8_t bos_descriptor[] = {
-    0x05, 0x0f, 0x16, 0x00, 0x02,
-    0x07, 0x10, 0x02, 0x06, 0x00, 0x00, 0x00,
-    0x0a, 0x10, 0x03, 0x00, 0x0f, 0x00, 0x01, 0x01, 0xf4, 0x01
-};
-
 void usbd_event_handler(uint8_t event)
 {
     switch (event) {
@@ -189,19 +139,12 @@ void usbd_event_handler(uint8_t event)
 
 struct usbd_interface intf0;
 
-struct usb_bos_descriptor bos_desc = {
-    .string = bos_descriptor,
-    .string_len = sizeof(bos_descriptor)
-};
-
 void app_main(void)
 {
     void sd_main(void);
     sd_main();
     uint32_t before = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
     usbd_desc_register(mtp_descriptor);
-    usbd_msosv1_desc_register(&msosv1_desc);
-    usbd_bos_desc_register(&bos_desc);
     usbd_add_interface(usbd_mtp_init_intf(&intf0, CDC_OUT_EP, CDC_IN_EP, CDC_INT_EP));
     usbd_initialize();
     while (1){
@@ -213,8 +156,6 @@ void app_main(void)
         now = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
         ESP_LOGW(TAG, "use %"PRIu32, before - now);
         usbd_desc_register(mtp_descriptor);
-        usbd_msosv1_desc_register(&msosv1_desc);
-        usbd_bos_desc_register(&bos_desc);
         usbd_add_interface(usbd_mtp_init_intf(&intf0, CDC_OUT_EP, CDC_IN_EP, CDC_INT_EP));
         usbd_initialize();
     }

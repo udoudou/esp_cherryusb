@@ -6,6 +6,37 @@ menu "ESP CherryUSB"
         bool
         default y if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
 
+    choice USB_DBG_LEVEL
+        bool "Default log verbosity"
+        default USB_DBG_LEVEL_INFO
+        help
+            Specify how much output to see in logs by default.
+            You can set lower verbosity level at runtime using
+            esp_log_level_set function.
+
+            By default, this setting limits which log statements
+            are compiled into the program. For example, selecting
+            "Warning" would mean that changing log level to "Debug"
+            at runtime will not be possible. To allow increasing log
+            level above the default at runtime, see the next option.
+
+        config USB_DBG_LEVEL_ERROR
+            bool "Error"
+        config USB_DBG_LEVEL_WARN
+            bool "Warning"
+        config USB_DBG_LEVEL_INFO
+            bool "Info"
+        config USB_DBG_LEVEL_DEBUG
+            bool "Debug"
+    endchoice
+
+    config USB_DBG_LEVEL
+        int
+        default 0 if USB_DBG_LEVEL_ERROR
+        default 1 if USB_DBG_LEVEL_WARN
+        default 2 if USB_DBG_LEVEL_INFO
+        default 3 if USB_DBG_LEVEL_DEBUG
+        
     menuconfig CHERRYUSBD_ENABLED
         bool "Enable CherryUSB Device"
         depends on CHERRYUSB_SUPPORTED
