@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -18,46 +18,46 @@ static int write_buffer_len = 0;
 
 volatile bool ep_tx_busy_flag = false;
 
-void usbd_event_handler(uint8_t event)
+void usbd_event_handler(uint8_t busid, uint8_t event)
 {
     switch (event) {
-        case USBD_EVENT_RESET:
-            break;
-        case USBD_EVENT_CONNECTED:
-            break;
-        case USBD_EVENT_DISCONNECTED:
-            break;
-        case USBD_EVENT_RESUME:
-            break;
-        case USBD_EVENT_SUSPEND:
-            break;
-        case USBD_EVENT_CONFIGURED:
-            /* setup first out ep read transfer */
-            usbd_ep_start_read(CDC_OUT_EP, read_buffer, sizeof(read_buffer));
-            break;
-        case USBD_EVENT_SET_REMOTE_WAKEUP:
-            break;
-        case USBD_EVENT_CLR_REMOTE_WAKEUP:
-            break;
+    case USBD_EVENT_RESET:
+        break;
+    case USBD_EVENT_CONNECTED:
+        break;
+    case USBD_EVENT_DISCONNECTED:
+        break;
+    case USBD_EVENT_RESUME:
+        break;
+    case USBD_EVENT_SUSPEND:
+        break;
+    case USBD_EVENT_CONFIGURED:
+        /* setup first out ep read transfer */
+        usbd_ep_start_read(0, CDC_OUT_EP, read_buffer, sizeof(read_buffer));
+        break;
+    case USBD_EVENT_SET_REMOTE_WAKEUP:
+        break;
+    case USBD_EVENT_CLR_REMOTE_WAKEUP:
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 }
 
-static void usbd_cdc_acm_bulk_out(uint8_t ep, uint32_t nbytes)
+static void usbd_cdc_acm_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
     USB_LOG_RAW("actual out len:%d\r\n", nbytes);
     memcpy(&write_buffer[0], &read_buffer[0], nbytes);
     write_buffer_len = nbytes;
-    usbd_ep_start_read(CDC_OUT_EP, read_buffer, sizeof(read_buffer));
+    usbd_ep_start_read(0, CDC_OUT_EP, read_buffer, sizeof(read_buffer));
 }
 
-static void usbd_cdc_acm_bulk_in(uint8_t ep, uint32_t nbytes)
+static void usbd_cdc_acm_bulk_in(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
     USB_LOG_RAW("actual in len:%d\r\n", nbytes);
     if ((nbytes % CDC_MAX_MPS) == 0 && nbytes) {
-        usbd_ep_start_write(CDC_IN_EP, NULL, 0);
+        usbd_ep_start_write(0, CDC_IN_EP, NULL, 0);
     } else {
         ep_tx_busy_flag = false;
     }
@@ -82,20 +82,20 @@ static void cdc_acm_init(void)
 
     memcpy(&write_buffer[0], data, 10);
 
-    usbd_desc_register(cdc_descriptor);
-    usbd_add_interface(usbd_cdc_acm_init_intf(&intf0));
-    usbd_add_interface(usbd_cdc_acm_init_intf(&intf1));
-    usbd_add_endpoint(&cdc_out_ep);
-    usbd_add_endpoint(&cdc_in_ep);
-    usbd_initialize();
+    usbd_desc_register(0, cdc_descriptor);
+    usbd_add_interface(0, usbd_cdc_acm_init_intf(0, &intf0));
+    usbd_add_interface(0, usbd_cdc_acm_init_intf(0, &intf1));
+    usbd_add_endpoint(0, &cdc_out_ep);
+    usbd_add_endpoint(0, &cdc_in_ep);
+    usbd_initialize(0, ESP_USBD_BASE, usbd_event_handler);
 }
 
-void usbd_cdc_acm_set_dtr(uint8_t intf, bool dtr)
+void usbd_cdc_acm_set_dtr(uint8_t busid, uint8_t intf, bool dtr)
 {
     USB_LOG_INFO("intf:%u, dtr:%d\r\n", intf, dtr);
 }
 
-void usbd_cdc_acm_set_rts(uint8_t intf, bool rts)
+void usbd_cdc_acm_set_rts(uint8_t busid, uint8_t intf, bool rts)
 {
     USB_LOG_INFO("intf:%u, rts:%d\r\n", intf, rts);
 }
@@ -104,7 +104,7 @@ static void cdc_acm_data_send_with_dtr_test(void)
 {
     if (write_buffer_len) {
         ep_tx_busy_flag = true;
-        usbd_ep_start_write(CDC_IN_EP, write_buffer, write_buffer_len);
+        usbd_ep_start_write(0, CDC_IN_EP, write_buffer, write_buffer_len);
         write_buffer_len = 0;
         while (ep_tx_busy_flag) {
             vTaskDelay(1);

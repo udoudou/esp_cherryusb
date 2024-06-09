@@ -6,8 +6,8 @@
 
 #pragma once
 
-#define CHERRYUSB_VERSION     0x010000
-#define CHERRYUSB_VERSION_STR "v1.0.0"
+#define CHERRYUSB_VERSION     0x010300
+#define CHERRYUSB_VERSION_STR "v1.3.0"
 
 #include "sdkconfig.h"
 #include "esp_rom_sys.h"
@@ -37,13 +37,18 @@
 /* ================= USB Device Stack Configuration ================ */
 // NOTE: Below configurations are removed to Kconfig, `idf.py menuconfig` to config them
 
-/* Ep0 max transfer buffer, specially for receiving data from ep0 out */
-/******
-#define CONFIG_USBDEV_REQUEST_BUFFER_LEN 256
-******/
+/* Ep0 in and out transfer buffer */
+#ifndef CONFIG_USBDEV_REQUEST_BUFFER_LEN
+#define CONFIG_USBDEV_REQUEST_BUFFER_LEN 512
+#endif
 
 /* Setup packet log for debug */
 // #define CONFIG_USBDEV_SETUP_LOG_PRINT
+
+/* Send ep0 in data from user buffer instead of copying into ep0 reqdata
+ * Please note that user buffer must be aligned with CONFIG_USB_ALIGN_SIZE
+*/
+// #define CONFIG_USBDEV_EP0_INDATA_NO_COPY
 
 /* Check if the input descriptor is correct */
 // #define CONFIG_USBDEV_DESC_CHECK
@@ -51,8 +56,12 @@
 /* Enable test mode */
 // #define CONFIG_USBDEV_TEST_MODE
 
-#ifndef CONFIG_USBDEV_MSC_BLOCK_SIZE
-#define CONFIG_USBDEV_MSC_BLOCK_SIZE 512
+#ifndef CONFIG_USBDEV_MSC_MAX_LUN
+#define CONFIG_USBDEV_MSC_MAX_LUN 1
+#endif
+
+#ifndef CONFIG_USBDEV_MSC_MAX_BUFSIZE
+#define CONFIG_USBDEV_MSC_MAX_BUFSIZE 512
 #endif
 
 #ifndef CONFIG_USBDEV_MSC_MANUFACTURER_STRING
@@ -81,8 +90,9 @@
 #define CONFIG_USBDEV_RNDIS_RESP_BUFFER_SIZE 156
 #endif
 
+/* rndis transfer buffer size, must be a multiple of (1536 + 44)*/
 #ifndef CONFIG_USBDEV_RNDIS_ETH_MAX_FRAME_SIZE
-#define CONFIG_USBDEV_RNDIS_ETH_MAX_FRAME_SIZE 1536
+#define CONFIG_USBDEV_RNDIS_ETH_MAX_FRAME_SIZE 1580
 #endif
 
 #ifndef CONFIG_USBDEV_RNDIS_VENDOR_ID
@@ -127,14 +137,14 @@
 // #define CONFIG_USBHOST_GET_STRING_DESC
 
 // #define CONFIG_USBHOST_MSOS_ENABLE
-/******
+#ifndef CONFIG_USBHOST_MSOS_VENDOR_CODE
 #define CONFIG_USBHOST_MSOS_VENDOR_CODE 0x00
-******/
+#endif
 
 /* Ep0 max transfer buffer */
-/******
+#ifndef CONFIG_USBHOST_REQUEST_BUFFER_LEN
 #define CONFIG_USBHOST_REQUEST_BUFFER_LEN 512
-******/
+#endif
 
 #ifndef CONFIG_USBHOST_CONTROL_TRANSFER_TIMEOUT
 #define CONFIG_USBHOST_CONTROL_TRANSFER_TIMEOUT 500
@@ -144,18 +154,90 @@
 #define CONFIG_USBHOST_MSC_TIMEOUT 5000
 #endif
 
+/* This parameter affects usb performance, and depends on (TCP_WND)tcp eceive windows size,
+ * you can change to 2K ~ 16K and must be larger than TCP RX windows size in order to avoid being overflow.
+ */
+#ifndef CONFIG_USBHOST_RNDIS_ETH_MAX_RX_SIZE
+#define CONFIG_USBHOST_RNDIS_ETH_MAX_RX_SIZE (2048)
+#endif
+
+/* Because lwip do not support multi pbuf at a time, so increasing this variable has no performance improvement */
+#ifndef CONFIG_USBHOST_RNDIS_ETH_MAX_TX_SIZE
+#define CONFIG_USBHOST_RNDIS_ETH_MAX_TX_SIZE (2048)
+#endif
+
+/* This parameter affects usb performance, and depends on (TCP_WND)tcp eceive windows size,
+ * you can change to 2K ~ 16K and must be larger than TCP RX windows size in order to avoid being overflow.
+ */
+#ifndef CONFIG_USBHOST_CDC_NCM_ETH_MAX_RX_SIZE
+#define CONFIG_USBHOST_CDC_NCM_ETH_MAX_RX_SIZE (2048)
+#endif
+/* Because lwip do not support multi pbuf at a time, so increasing this variable has no performance improvement */
+#ifndef CONFIG_USBHOST_CDC_NCM_ETH_MAX_TX_SIZE
+#define CONFIG_USBHOST_CDC_NCM_ETH_MAX_TX_SIZE (2048)
+#endif
+
+/* This parameter affects usb performance, and depends on (TCP_WND)tcp eceive windows size,
+ * you can change to 2K ~ 16K and must be larger than TCP RX windows size in order to avoid being overflow.
+ */
+#ifndef CONFIG_USBHOST_ASIX_ETH_MAX_RX_SIZE
+#define CONFIG_USBHOST_ASIX_ETH_MAX_RX_SIZE (2048)
+#endif
+/* Because lwip do not support multi pbuf at a time, so increasing this variable has no performance improvement */
+#ifndef CONFIG_USBHOST_ASIX_ETH_MAX_TX_SIZE
+#define CONFIG_USBHOST_ASIX_ETH_MAX_TX_SIZE (2048)
+#endif
+
+/* This parameter affects usb performance, and depends on (TCP_WND)tcp eceive windows size,
+ * you can change to 2K ~ 16K and must be larger than TCP RX windows size in order to avoid being overflow.
+ */
+#ifndef CONFIG_USBHOST_RTL8152_ETH_MAX_RX_SIZE
+#define CONFIG_USBHOST_RTL8152_ETH_MAX_RX_SIZE (2048)
+#endif
+/* Because lwip do not support multi pbuf at a time, so increasing this variable has no performance improvement */
+#ifndef CONFIG_USBHOST_RTL8152_ETH_MAX_TX_SIZE
+#define CONFIG_USBHOST_RTL8152_ETH_MAX_TX_SIZE (2048)
+#endif
+
+#define CONFIG_USBHOST_BLUETOOTH_HCI_H4
+// #define CONFIG_USBHOST_BLUETOOTH_HCI_LOG
+
+#ifndef CONFIG_USBHOST_BLUETOOTH_TX_SIZE
+#define CONFIG_USBHOST_BLUETOOTH_TX_SIZE 2048
+#endif
+#ifndef CONFIG_USBHOST_BLUETOOTH_RX_SIZE
+#define CONFIG_USBHOST_BLUETOOTH_RX_SIZE 2048
+#endif
+
 /* ================ USB Device Port Configuration ================*/
 
-#define USBD_IRQHandler      USBD_IRQHandler
 #if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
-#define USBD_BASE           0x60080000
+#define ESP_USBD_BASE           0x60080000
+
+#ifndef CONFIG_USBDEV_MAX_BUS
+#define CONFIG_USBDEV_MAX_BUS 1 // for now, bus num must be 1 except hpm ip
+#endif
 // esp32s2/s3 has 7 endpoints in device mode (include ep0)
 #define CONFIG_USBDEV_EP_NUM 7
-#define CONFIG_USB_DWC2_RAM_SIZE 1280
-#define CONFIG_USB_DWC2_TX6_FIFO_SIZE (128)
+
+/* ---------------- DWC2 Configuration ---------------- */
+//esp32s2/s3 can support up to 5 IN endpoints(include ep0) at the same time
+#define CONFIG_USB_DWC2_RXALL_FIFO_SIZE (208 / 4)
+#define CONFIG_USB_DWC2_TX0_FIFO_SIZE (64 / 4)
+#define CONFIG_USB_DWC2_TX1_FIFO_SIZE (136 / 4)
+#define CONFIG_USB_DWC2_TX2_FIFO_SIZE (136 / 4)
+#define CONFIG_USB_DWC2_TX3_FIFO_SIZE (128 / 4)
+#define CONFIG_USB_DWC2_TX4_FIFO_SIZE (128 / 4)
+#define CONFIG_USB_DWC2_TX5_FIFO_SIZE (0 / 4)
+#define CONFIG_USB_DWC2_TX6_FIFO_SIZE (0 / 4)
+#define CONFIG_USB_DWC2_TX7_FIFO_SIZE (0 / 4)
+#define CONFIG_USB_DWC2_TX8_FIFO_SIZE (0 / 4)
+
+#define CONFIG_USB_DWC2_DMA_ENABLE
+
 #elif CONFIG_IDF_TARGET_ESP32C5 || CONFIG_IDF_TARGET_ESP32P4
 #define CONFIG_USB_HS
-#define USBD_BASE           0x60080000
+#define ESP_USBD_BASE           0x60080000
 // todo: check c5, p4 in later
 #define CONFIG_USBDEV_EP_NUM 7
 #else
@@ -163,14 +245,14 @@
 #endif
 
 /* ================ USB Host Port Configuration ==================*/
-#define USBH_IRQHandler         USBH_IRQHandler
+
 #if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
-#define USBH_BASE               0x60080000
+#define ESP_USBH_BASE               0x60080000
 // esp32s2/s3 has 8 endpoints in host mode (include ep0)
 #define CONFIG_USBHOST_PIPE_NUM 8
 #elif CONFIG_IDF_TARGET_ESP32C5 || CONFIG_IDF_TARGET_ESP32P4
 // todo: check c5, p4 in later
-#define USBH_BASE               0x60080000
+#define ESP_USBH_BASE               0x60080000
 #define CONFIG_USBHOST_PIPE_NUM 8
 #else
 #error "Unsupported SoC"
