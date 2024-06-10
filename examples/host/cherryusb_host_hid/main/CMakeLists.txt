@@ -1,5 +1,5 @@
 idf_component_register(SRCS 
-    "device_cdc_main.c"
+    "host_hid_main.c"
     INCLUDE_DIRS
     "."
 )

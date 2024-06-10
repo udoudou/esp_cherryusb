@@ -5,15 +5,14 @@ menu "ESP CherryUSB"
     config CHERRYUSB_SUPPORTED
         bool
         default y if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
-        
+
     menuconfig CHERRYUSBD_ENABLED
         bool "Enable CherryUSB Device"
+        depends on CHERRYUSB_SUPPORTED
         default n
         help
             Enable CherryUSB Device support.
-
-    if CHERRYUSBD_ENABLED
-        menu "USB Device Config"
+        if CHERRYUSBD_ENABLED
             config USBDEV_REQUEST_BUFFER_LEN
                 int "Largest size (in bytes) of transfers to ep0 out"
                 default 512
@@ -26,9 +25,12 @@ menu "ESP CherryUSB"
             config USBDEV_TEST_MODE
                 bool "USB test mode"
                 default n
-        endmenu
+        endif # CHERRYUSBD_ENABLED
 
-        menu "USB Device CDC Config"
+    menu "USB Device Config"
+        visible if CHERRYUSBD_ENABLED
+
+        menu "USB Device CDC ACM Config"
         endmenu
 
         menu "USB Device HID Config"
@@ -66,10 +68,7 @@ menu "ESP CherryUSB"
         menu "USB Device Video Config"
         endmenu
 
-        menu "USB Device DFU Config"
-        endmenu
-
-        menu "USB Device RNDIS Config"
+        menu "USB Device CDC RNDIS Config"
             config USBDEV_RNDIS_RESP_BUFFER_SIZE
                 int "RNDIS response buffer size"
                 default 156
@@ -87,153 +86,139 @@ menu "ESP CherryUSB"
                 default y
         endmenu
 
-    endif # CHERRYUSBD_ENABLED
+        menu "USB Device CDC ECM Config"
+        endmenu
 
-    config CHERRYUSBH_ENABLED
+        menu "USB Device DFU Config"
+        endmenu
+
+    endmenu
+
+    menuconfig CHERRYUSBH_ENABLED
         bool "Enable CherryUSB Host"
+        depends on CHERRYUSB_SUPPORTED
         default n
         help
             Enable CherryUSB Host support.
+        if CHERRYUSBH_ENABLED
+            config USBHOST_MAX_RHPORTS
+                int "Maximum number of root hub ports"
+                default 1
+            config USBHOST_MAX_EXTHUBS
+                int "Maximum number of external hubs"
+                default 1
+            config USBHOST_MAX_EHPORTS
+                int "Maximum number of external hub ports"
+                default 4
+            config USBHOST_MAX_INTERFACES
+                int "Maximum number of interfaces"
+                default 8
+            config USBHOST_MAX_INTF_ALTSETTINGS
+                int "Maximum number of interface alternate settings"
+                default 8
+            config USBHOST_MAX_ENDPOINTS
+                int "Maximum number of endpoints"
+                default 4
+            config USBHOST_DEV_NAMELEN
+                int "Maximum length of device name"
+                default 16
+            config USBHOST_PSC_PRIO
+                int "Priority of the Host PSC task"
+                range 1 25
+                default 1
+            config USBHOST_PSC_STACKSIZE
+                int "Stack size of the Host PSC task"
+                default 2048
+            config USBHOST_GET_STRING_DESC
+                bool "Get string descriptor"
+                default n
+            config USBHOST_MSOS_ENABLE
+                bool "Msos enable"
+                default n
+            config USBHOST_MSOS_VENDOR_CODE
+                hex "Msos vendor code"
+                depends on USBHOST_MSOS_ENABLE
+                range 0x00 0xff
+                default 0x00
+            config USBHOST_REQUEST_BUFFER_LEN
+                int "Largest size (in bytes) of transfers from/to ep0"
+                default 512
+            config USBHOST_CONTROL_TRANSFER_TIMEOUT
+                int "Timeout for control transfers (in ms)"
+                default 500
+            config USBHOST_MSC_TIMEOUT
+                int "Timeout for MSC (in ms)"
+                default 5000
+        endif # CHERRYUSBH_ENABLED
 
-    config CHERRYUSBH_CDC_ENABLED
-        bool "Enable CherryUSB Host CDC ACM"
-        depends on CHERRYUSBH_ENABLED
-        default n
-        help
-            Enable CherryUSB CDC ACM support.
-    config CHERRYUSBH_HID_ENABLED
-        bool "Enable CherryUSB Host HID"
-        depends on CHERRYUSBH_ENABLED
-        default n
-        help
-            Enable CherryUSB HID support.
-    config CHERRYUSBH_MSC_ENABLED
-        bool "Enable CherryUSB Host MSC"
-        depends on CHERRYUSBH_ENABLED
-        default n
-        help
-            Enable CherryUSB MSC support.
-    config CHERRYUSBH_AUDIO_ENABLED
-        bool "Enable CherryUSB Host Audio"
-        depends on CHERRYUSBH_ENABLED
-        default n
-        help
-            Enable CherryUSB Audio support.
-    config CHERRYUSBH_VIDEO_ENABLED
-        bool "Enable CherryUSB Host Video"
-        depends on CHERRYUSBH_ENABLED
-        default n
-        help
-            Enable CherryUSB Video support.
-    config CHERRYUSBH_RNDIS_ENABLED
-        bool "Enable CherryUSB Host RNDIS"
-        depends on CHERRYUSBH_ENABLED
-        default n
-        help
-            Enable CherryUSB RNDIS support.
-    config CHERRYUSBH_PRINTER_ENABLED
-        bool "Enable CherryUSB Host Printer"
-        depends on CHERRYUSBH_ENABLED
-        default n
-        help
-            Enable CherryUSB Printer support.
-    config CHERRYUSBH_MTP_ENABLED
-        bool "Enable CherryUSB Host MTP"
-        depends on CHERRYUSBH_ENABLED
-        default n
-        help
-            Enable CherryUSB MTP support.
-    config CHERRYUSBH_PRINTER_ENABLED
-        bool "Enable CherryUSB Host Printer"
-        depends on CHERRYUSBH_ENABLED
-        default n
-        help
-            Enable CherryUSB Printer support.
-
-    menu "USB Host Config"
+    menu "USB Host driver Config"
         visible if CHERRYUSBH_ENABLED
-        config USBHOST_MAX_RHPORTS
-            int "Maximum number of root hub ports"
-            depends on CHERRYUSBH_ENABLED
-            default 1
-        config USBHOST_MAX_EXTHUBS
-            int "Maximum number of external hubs"
-            depends on CHERRYUSBH_ENABLED
-            default 1
-        config USBHOST_MAX_EHPORTS
-            int "Maximum number of external hub ports"
-            depends on CHERRYUSBH_ENABLED
-            default 4
-        config USBHOST_MAX_INTERFACES
-            int "Maximum number of interfaces"
-            depends on CHERRYUSBH_ENABLED
-            default 8
-        config USBHOST_MAX_INTF_ALTSETTINGS
-            int "Maximum number of interface alternate settings"
-            depends on CHERRYUSBH_ENABLED
-            default 8
-        config USBHOST_MAX_ENDPOINTS
-            int "Maximum number of endpoints"
-            depends on CHERRYUSBH_ENABLED
-            default 4
+
+        config CHERRYUSBH_CDC_ACM_ENABLED
+            bool "Enable CDC ACM driver"
+            default n
         config USBHOST_MAX_CDC_ACM_CLASS
             int "Maximum number of CDC ACM class devices"
-            depends on CHERRYUSBH_ENABLED
-            default 4
+            depends on CHERRYUSBH_CDC_ACM_ENABLED
+            default 1
+        config CHERRYUSBH_HID_ENABLED
+            bool "Enable HID driver"
+            default n
         config USBHOST_MAX_HID_CLASS
             int "Maximum number of HID class devices"
-            depends on CHERRYUSBH_ENABLED
-            default 4
+            depends on CHERRYUSBH_HID_ENABLED
+            default 3
+        config CHERRYUSBH_MSC_ENABLED
+            bool "Enable MSC driver"
+            default n
         config USBHOST_MAX_MSC_CLASS
+            depends on CHERRYUSBH_MSC_ENABLED
             int "Maximum number of MSC class devices"
-            depends on CHERRYUSBH_ENABLED
-            default 2
-        config USBHOST_MAX_AUDIO_CLASS
-            int "Maximum number of Audio class devices"
-            depends on CHERRYUSBH_ENABLED
             default 1
+        config CHERRYUSBH_CDC_ECM_ENABLED
+            bool "Enable CDC ECM driver"
+            default n
+        config CHERRYUSBH_CDC_RNDIS_ENABLED
+            bool "Enable RNDIS driver"
+            default n
+        config CHERRYUSBH_CDC_NCM_ENABLED
+            bool "Enable CDC NCM driver"
+            default n
+        config CHERRYUSBH_VIDEO_ENABLED
+            bool "Enable Video driver"
+            default n
         config USBHOST_MAX_VIDEO_CLASS
             int "Maximum number of Video class devices"
-            depends on CHERRYUSBH_ENABLED
+            depends on CHERRYUSBH_VIDEO_ENABLED
             default 1
-        config USBHOST_DEV_NAMELEN
-            int "Maximum length of device name"
-            depends on CHERRYUSBH_ENABLED
-            default 16
-        config USBHOST_PSC_PRIO
-            int "Priority of the Host PSC task"
-            depends on CHERRYUSBH_ENABLED
-            range 0 23
-            default 0
-        config USBHOST_PSC_STACKSIZE
-            int "Stack size of the Host PSC task"
-            depends on CHERRYUSBH_ENABLED
-            default 3096
-        config USBHOST_GET_STRING_DESC
-            bool "Get string descriptor"
-            depends on CHERRYUSBH_ENABLED
+        config CHERRYUSBH_AUDIO_ENABLED
+            bool "Enable Audio driver"
             default n
-        config USBHOST_MSOS_ENABLE
-            bool "todo"
-            depends on CHERRYUSBH_ENABLED
+        config USBHOST_MAX_AUDIO_CLASS
+            int "Maximum number of Audio class devices"
+            depends on CHERRYUSBH_AUDIO_ENABLED
+            default 1
+        config CHERRYUSBH_BLUETOOTH_ENABLED
+            bool "Enable Bluetooth driver"
             default n
-        config USBHOST_MSOS_VENDOR_CODE
-            hex "todo"
-            depends on USBHOST_MSOS_ENABLE
-            range 0x00 0xff
-            default 0x00
-        config USBHOST_REQUEST_BUFFER_LEN
-            int "Largest size (in bytes) of transfers from/to ep0"
-            depends on CHERRYUSBH_ENABLED
-            default 1024
-        config USBHOST_CONTROL_TRANSFER_TIMEOUT
-            int "Timeout for control transfers (in ms)"
-            depends on CHERRYUSBH_ENABLED
-            default 500
-        config USBHOST_MSC_TIMEOUT
-            int "Timeout for MSC (in ms)"
-            depends on CHERRYUSBH_ENABLED
-            default 5000
+        config CHERRYUSBH_ASIX_ENABLED
+            bool "Enable ASIX driver"
+            default n
+        config CHERRYUSBH_RTL8152_ENABLED
+            bool "Enable RTL8152 driver"
+            default n
+        config CHERRYUSBH_FTDI
+            bool "Enable FTDI driver"
+            default n
+        config CHERRYUSBH_CH34X
+            bool "Enable CH34x driver"
+            default n
+        config CHERRYUSBH_CP210X
+            bool "Enable CP210X driver"
+            default n
+        config CHERRYUSBH_PL2303
+            bool "Enable PL2303 driver"
+            default n
     endmenu
 
 endmenu #ESP CherryUSB

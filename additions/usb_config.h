@@ -214,9 +214,7 @@
 #if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
 #define ESP_USBD_BASE           0x60080000
 
-#ifndef CONFIG_USBDEV_MAX_BUS
-#define CONFIG_USBDEV_MAX_BUS 1 // for now, bus num must be 1 except hpm ip
-#endif
+#define CONFIG_USBDEV_MAX_BUS 1
 // esp32s2/s3 has 7 endpoints in device mode (include ep0)
 #define CONFIG_USBDEV_EP_NUM 7
 
@@ -248,8 +246,22 @@
 
 #if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
 #define ESP_USBH_BASE               0x60080000
+
+#define CONFIG_USBHOST_MAX_BUS 1
 // esp32s2/s3 has 8 endpoints in host mode (include ep0)
 #define CONFIG_USBHOST_PIPE_NUM 8
+
+/* ---------------- DWC2 Configuration ---------------- */
+/* largest non-periodic USB packet used / 4 */
+#define CONFIG_USB_DWC2_NPTX_FIFO_SIZE (240 / 4)
+/* largest periodic USB packet used / 4 */
+#define CONFIG_USB_DWC2_PTX_FIFO_SIZE (240 / 4)
+/*
+ * (largest USB packet used / 4) + 1 for status information + 1 transfer complete +
+ * 1 location each for Bulk/Control endpoint for handling NAK/NYET scenario
+ */
+#define CONFIG_USB_DWC2_RX_FIFO_SIZE ((200 - CONFIG_USB_DWC2_NPTX_FIFO_SIZE - CONFIG_USB_DWC2_PTX_FIFO_SIZE) / 4)
+
 #elif CONFIG_IDF_TARGET_ESP32C5 || CONFIG_IDF_TARGET_ESP32P4
 // todo: check c5, p4 in later
 #define ESP_USBH_BASE               0x60080000

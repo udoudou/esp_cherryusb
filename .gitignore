@@ -3,3 +3,6 @@ sdkconfig.old
 build
 managed_components
 dependencies.lock
+
+# VS Code Settings
+.vscode/

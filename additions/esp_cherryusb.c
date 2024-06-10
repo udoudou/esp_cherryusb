@@ -10,6 +10,9 @@
 #include "soc/periph_defs.h"
 #include "usb_config.h"
 #include "usb_log.h"
+#ifdef CONFIG_CHERRYUSBH_ENABLED
+#include "usbh_core.h"
+#endif
 
 #ifdef CONFIG_IDF_TARGET_ESP32S2
 #define DEFAULT_CPU_FREQ_MHZ                CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ
@@ -70,6 +73,8 @@ uint32_t usbd_get_dwc2_gccfg_conf(uint32_t reg_base)
     return 0;
 }
 
+#ifdef CONFIG_CHERRYUSBH_ENABLED
+
 static void usb_hc_interrupt_cb(void *arg_pv)
 {
     extern void USBH_IRQHandler(uint8_t busid);
@@ -116,3 +121,4 @@ void usb_hc_low_level_deinit(struct usbh_bus *bus)
 }
 
 uint32_t usbh_get_dwc2_gccfg_conf(uint32_t reg_base) __attribute__((alias("usbd_get_dwc2_gccfg_conf")));
+#endif
