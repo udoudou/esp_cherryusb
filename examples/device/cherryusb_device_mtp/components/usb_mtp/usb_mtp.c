@@ -33,7 +33,7 @@ esp_mtp_handle_t s_handle;
 static usb_mtp_status_t s_mtp_status = USB_MTP_CLOSE;
 static portMUX_TYPE s_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
-static int mtp_class_interface_request_handler(struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
+static int mtp_class_interface_request_handler(uint8_t busid, struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
 {
     USB_LOG_DBG("MTP Class request: "
         "bRequest 0x%02x\r\n",
@@ -62,17 +62,17 @@ static int mtp_class_interface_request_handler(struct usb_setup_packet *setup, u
     return 0;
 }
 
-static void usbd_mtp_bulk_out(uint8_t ep, uint32_t nbytes)
+static void usbd_mtp_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
     esp_mtp_read_async_cb(s_handle, nbytes);
 }
 
-static void usbd_mtp_bulk_in(uint8_t ep, uint32_t nbytes)
+static void usbd_mtp_bulk_in(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
     esp_mtp_write_async_cb(s_handle, nbytes);
 }
 
-static void mtp_notify_handler(uint8_t event, void *arg)
+static void mtp_notify_handler(uint8_t busid, uint8_t event, void *arg)
 {
     BaseType_t high_task_wakeup = pdFALSE;
     switch (event) {
@@ -125,7 +125,7 @@ static int usb_write(void *pipe_context, const uint8_t *data, int data_size)
         esp_mtp_write_async_cb(s_handle, data_size);
         return data_size;
     }
-    usbd_ep_start_write(mtp_ep_data[MTP_IN_EP_IDX].ep_addr, data, data_size);
+    usbd_ep_start_write(0, mtp_ep_data[MTP_IN_EP_IDX].ep_addr, data, data_size);
     return data_size;
 }
 
@@ -136,7 +136,7 @@ static int usb_read(void *pipe_context, uint8_t *data, int data_size)
         esp_mtp_read_async_cb(s_handle, data_size);
         return data_size;
     }
-    usbd_ep_start_read(mtp_ep_data[MTP_OUT_EP_IDX].ep_addr, data, data_size);
+    usbd_ep_start_read(0, mtp_ep_data[MTP_OUT_EP_IDX].ep_addr, data, data_size);
     return data_size;
 }
 
@@ -159,9 +159,9 @@ struct usbd_interface *usbd_mtp_init_intf(struct usbd_interface *intf,
     mtp_ep_data[MTP_INT_EP_IDX].ep_addr = int_ep;
     mtp_ep_data[MTP_INT_EP_IDX].ep_cb = NULL;
 
-    usbd_add_endpoint(&mtp_ep_data[MTP_OUT_EP_IDX]);
-    usbd_add_endpoint(&mtp_ep_data[MTP_IN_EP_IDX]);
-    usbd_add_endpoint(&mtp_ep_data[MTP_INT_EP_IDX]);
+    usbd_add_endpoint(0, &mtp_ep_data[MTP_OUT_EP_IDX]);
+    usbd_add_endpoint(0, &mtp_ep_data[MTP_IN_EP_IDX]);
+    usbd_add_endpoint(0, &mtp_ep_data[MTP_INT_EP_IDX]);
 
     s_mtp_status = USB_MTP_STOPPING;
 

@@ -87,9 +87,9 @@ const uint8_t mtp_descriptor[] = {
     '2', 0x00,                  /* wcChar0 */
     '0', 0x00,                  /* wcChar1 */
     '2', 0x00,                  /* wcChar2 */
-    '1', 0x00,                  /* wcChar3 */
+    '4', 0x00,                  /* wcChar3 */
     '0', 0x00,                  /* wcChar4 */
-    '3', 0x00,                  /* wcChar5 */
+    '6', 0x00,                  /* wcChar5 */
     '1', 0x00,                  /* wcChar6 */
     '0', 0x00,                  /* wcChar7 */
     '0', 0x00,                  /* wcChar8 */
@@ -112,7 +112,7 @@ const uint8_t mtp_descriptor[] = {
     0x00
 };
 
-void usbd_event_handler(uint8_t event)
+void usbd_event_handler(uint8_t busid, uint8_t event)
 {
     switch (event) {
     case USBD_EVENT_RESET:
@@ -144,19 +144,19 @@ void app_main(void)
     void sd_main(void);
     sd_main();
     uint32_t before = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
-    usbd_desc_register(mtp_descriptor);
-    usbd_add_interface(usbd_mtp_init_intf(&intf0, CDC_OUT_EP, CDC_IN_EP, CDC_INT_EP));
-    usbd_initialize();
+    usbd_desc_register(0, mtp_descriptor);
+    usbd_add_interface(0, usbd_mtp_init_intf(&intf0, CDC_OUT_EP, CDC_IN_EP, CDC_INT_EP));
+    usbd_initialize(0, ESP_USBD_BASE, usbd_event_handler);
     while (1){
         vTaskDelay(10000 / portTICK_PERIOD_MS);
         usbd_mtp_deinit();
-        usbd_deinitialize();
+        usbd_deinitialize(0);
         vTaskDelay(500 / portTICK_PERIOD_MS);
         uint32_t now;
         now = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
         ESP_LOGW(TAG, "use %"PRIu32, before - now);
-        usbd_desc_register(mtp_descriptor);
-        usbd_add_interface(usbd_mtp_init_intf(&intf0, CDC_OUT_EP, CDC_IN_EP, CDC_INT_EP));
-        usbd_initialize();
+        usbd_desc_register(0, mtp_descriptor);
+        usbd_add_interface(0, usbd_mtp_init_intf(&intf0, CDC_OUT_EP, CDC_IN_EP, CDC_INT_EP));
+        usbd_initialize(0, ESP_USBD_BASE, usbd_event_handler);
     }
 }
