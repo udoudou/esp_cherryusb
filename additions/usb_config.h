@@ -6,8 +6,8 @@
 
 #pragma once
 
-#define CHERRYUSB_VERSION     0x010300
-#define CHERRYUSB_VERSION_STR "v1.3.0"
+#define CHERRYUSB_VERSION     0x010301
+#define CHERRYUSB_VERSION_STR "v1.3.1"
 
 #include "sdkconfig.h"
 #include "esp_rom_sys.h"

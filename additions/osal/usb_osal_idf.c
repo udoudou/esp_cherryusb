@@ -188,3 +188,13 @@ void usb_osal_msleep(uint32_t delay)
 {
     vTaskDelay(pdMS_TO_TICKS(delay));
 }
+
+void *usb_osal_malloc(size_t size)
+{
+    return malloc(size);
+}
+
+void usb_osal_free(void *ptr)
+{
+    free(ptr);
+}
